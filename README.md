@@ -1,6 +1,6 @@
 # S3 → EventBridge → ECS Fargate
 
-An event-driven pipeline that automatically processes objects uploaded to S3. Built as a learning exercise comparing a simple modern EventBridge approach against a more complex SNS/SQS dual-queue pattern used in production systems.
+An event-driven pipeline that automatically processes objects uploaded to S3. Demonstrates the modern EventBridge-native approach as an alternative to older SNS/SQS notification chains.
 
 ## Architecture
 
@@ -167,14 +167,13 @@ aws logs tail /ecs/s3-sha256 --follow --region eu-west-1
 | Concern | This setup | Production |
 |---|---|---|
 | S3 → EventBridge | `eventbridge = true` on bucket | Same — this is the modern approach |
-| Event routing | EventBridge rule + ECS target | EventBridge Pipe polling SQS (dual-queue pattern) |
-| Failure handling | DynamoDB ledger + reprocess script | SQS visibility timeout → automatic retry |
-| At-least-once guarantee | Manual reprocess runs | SQS retries + DLQ |
+| Failure handling | DynamoDB ledger + manual reprocess script | SQS DLQ on EventBridge target + CloudWatch alarm |
 | Terraform state | Local `terraform.tfstate` | S3 backend + DynamoDB locking |
 | Networking | Default VPC, public subnets, public IP | Private subnets + NAT gateway or VPC endpoints |
 | Image tags | Mutable `latest` | Immutable, tagged with git SHA |
-| ECR repos | 1 | 2 (primary + layer cache) |
 | Task CPU/memory | 0.25 vCPU / 512 MB | Sized to workload |
 | Secrets | IAM role only | Secrets Manager for external credentials |
-| Log retention | 7 days | 14+ days |
+| S3 bucket | No versioning, encryption, or access logging | All three enabled, plus lifecycle rules |
+| Log retention | 7 days | Longer retention per compliance requirements |
 | Container Insights | Disabled | Enabled |
+| `force_destroy` on S3/ECR | Enabled for easy teardown | Remove — destructive operations should fail loudly |
